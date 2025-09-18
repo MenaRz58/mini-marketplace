@@ -1,0 +1,47 @@
+services:
+  consul:
+    image: consul:1.15
+    ports:
+      - "8500:8500"
+    command: "agent -dev -client=0.0.0.0"
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - users
+      - orders
+      - products
+      - metadata
+      - consul
+
+  users:
+    build:
+      context: .
+      dockerfile: users/Dockerfile
+    depends_on:
+      - consul
+
+  orders:
+    build:
+      context: .
+      dockerfile: orders/Dockerfile
+    depends_on:
+      - consul
+
+  products:
+    build:
+      context: .
+      dockerfile: products/Dockerfile
+    depends_on:
+      - consul
+
+  metadata:
+    build:
+      context: .
+      dockerfile: metadata/Dockerfile
+    depends_on:
+      - consul
