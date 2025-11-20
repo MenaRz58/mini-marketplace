@@ -7,11 +7,21 @@ import (
 	"mini-marketplace/products/internal/pkg/model"
 )
 
+// Repo define la interfaz que el controlador va a usar
+type Repo interface {
+	List() []model.Product
+	Get(id string) (model.Product, error)
+	Create(p model.Product) error
+	DecreaseStock(id string, qty int) error
+}
+
+// ProductRepository es una implementación en memoria de Repo
 type ProductRepository struct {
 	mu   sync.RWMutex
 	data map[string]model.Product
 }
 
+// NewProductRepository crea un repositorio con datos iniciales
 func NewProductRepository() *ProductRepository {
 	return &ProductRepository{
 		data: map[string]model.Product{
@@ -21,6 +31,7 @@ func NewProductRepository() *ProductRepository {
 	}
 }
 
+// List devuelve todos los productos
 func (r *ProductRepository) List() []model.Product {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -31,6 +42,7 @@ func (r *ProductRepository) List() []model.Product {
 	return out
 }
 
+// Get devuelve un producto por ID
 func (r *ProductRepository) Get(id string) (model.Product, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -41,6 +53,7 @@ func (r *ProductRepository) Get(id string) (model.Product, error) {
 	return p, nil
 }
 
+// Create agrega un nuevo producto
 func (r *ProductRepository) Create(p model.Product) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -51,6 +64,7 @@ func (r *ProductRepository) Create(p model.Product) error {
 	return nil
 }
 
+// DecreaseStock reduce el stock de un producto
 func (r *ProductRepository) DecreaseStock(id string, qty int) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

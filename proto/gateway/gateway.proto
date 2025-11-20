@@ -1,0 +1,39 @@
+syntax = "proto3";
+package gateway;
+
+option go_package = "mini-marketplace/proto/gateway";
+
+// Servicio que ve el mundo exterior
+service GatewayService {
+    // El cliente llama a esto
+    rpc PlaceOrder(PlaceOrderRequest) returns (PlaceOrderResponse);
+}
+
+message PlaceOrderRequest {
+    string user_id = 1;
+    repeated ItemRequest items = 2; 
+}
+
+message ItemRequest {
+    string product_id = 1;
+    int32 quantity = 2;
+}
+
+message PlaceOrderResponse {
+    bool success = 1;
+    Order order = 3;
+}
+
+message Order {
+    string id = 1;
+    string user_id = 2;
+    double total = 3;
+    int64 created_at = 4;
+    repeated OrderProduct products = 5;
+}
+
+message OrderProduct {
+    string product_id = 1;
+    int32 quantity = 2;
+    double price = 3;
+}

@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package orders;
+
+option go_package = "mini-marketplace/proto/orders";
+
+// Servicio gRPC para órdenes
+service OrdersService {
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+  rpc ListOrders(ListRequest) returns (ListResponse);
+}
+
+// Mensaje de producto dentro de una orden
+message OrderProduct {
+  string product_id = 1;
+  int32 quantity = 2;
+  double price = 3;
+}
+
+// Mensaje de orden
+message Order {
+  string id = 1;
+  string user_id = 2;
+  repeated OrderProduct products = 3;
+  double total = 4;
+  int64 created_at = 5;
+}
+
+// --- Requests y Responses ---
+
+// Crear orden
+message CreateOrderRequest {
+  string user_id = 1;
+  repeated OrderProduct products = 2;
+}
+
+message CreateOrderResponse {
+  Order order = 1;
+}
+
+// Obtener orden
+message GetOrderRequest {
+  string id = 1;
+}
+
+message GetOrderResponse {
+  Order order = 1;
+}
+
+// Listar órdenes
+message ListRequest {
+  // opcional: filtros, paginación, etc.
+}
+
+message ListResponse {
+  repeated Order orders = 1;
+}

@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: products
+  namespace: mini-marketplace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: products
+  template:
+    metadata:
+      labels:
+        app: products
+    spec:
+      containers:
+      - name: products
+        image: mini-marketplace-products:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 50051

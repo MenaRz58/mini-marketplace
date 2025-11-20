@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: products
+  namespace: mini-marketplace
+spec:
+  selector:
+    app: products
+  ports:
+  - port: 50051
+    targetPort: 50051
+  type: ClusterIP

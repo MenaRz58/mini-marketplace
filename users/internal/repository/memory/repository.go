@@ -7,9 +7,15 @@ import (
 	"mini-marketplace/users/internal/pkg/model"
 )
 
+type Repo interface {
+	List() []model.User
+	Get(id string) (model.User, error)
+	Create(u model.User) error
+}
+
 type UserRepository struct {
-	mu   sync.RWMutex
 	data map[string]model.User
+	mu   sync.RWMutex
 }
 
 func NewUserRepository() *UserRepository {

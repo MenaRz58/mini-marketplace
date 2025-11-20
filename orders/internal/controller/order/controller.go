@@ -1,190 +1,156 @@
 package order
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
-	"net/http"
 	"time"
 
-	metadataModel "mini-marketplace/metadata/pkg/model"
 	"mini-marketplace/orders/internal/pkg/model"
-	"mini-marketplace/pkg"
-	"mini-marketplace/pkg/discovery/consul"
+	"mini-marketplace/orders/internal/repository"
+	pb "mini-marketplace/proto/orders"
 
 	"github.com/google/uuid"
 )
 
-type Repo interface {
-	List() []model.Order
-	Get(id string) (model.Order, error)
-	Create(o model.Order) error
-}
-
+// Controller maneja la lógica de órdenes
 type Controller struct {
-	repo     Repo
-	registry *consul.Registry
-	ctx      context.Context
+	repo repository.Repo
 }
 
-func NewController(r Repo, reg *consul.Registry, ctx context.Context) *Controller {
-	return &Controller{
-		repo:     r,
-		registry: reg,
-		ctx:      ctx,
-	}
+// Nuevo controller
+func NewController(r repository.Repo) *Controller {
+	return &Controller{repo: r}
 }
 
-func (c *Controller) List() []model.Order {
+// List devuelve todas las órdenes
+func (c *Controller) List() ([]model.Order, error) {
 	return c.repo.List()
 }
 
+// Get devuelve una orden por ID
 func (c *Controller) Get(id string) (model.Order, error) {
 	return c.repo.Get(id)
 }
 
-// Create soporta múltiples productos por orden
-func (c *Controller) Create(o model.Order) error {
-	if o.UserID == "" || len(o.Products) == 0 {
-		return errors.New("invalid order fields")
+// Create crea una nueva orden
+func (c *Controller) Create(userID string, products []model.OrderProduct) (model.Order, error) {
+	if userID == "" || len(products) == 0 {
+		return model.Order{}, errors.New("invalid order fields")
 	}
 
-	// Generar ID automáticamente si no se proporciona
-	if o.ID == "" {
-		o.ID = uuid.New().String()
-	} else {
-		_, err := c.repo.Get(o.ID)
-		if err == nil {
-			return errors.New("order already exists")
-		}
+	o := model.Order{
+		ID:        uuid.New().String(),
+		UserID:    userID,
+		Products:  products,
+		CreatedAt: time.Now().Unix(),
 	}
 
-	// Descubrir servicios
-	usersAddrs, err := c.registry.ServiceAddress(c.ctx, "users")
-	if err != nil || len(usersAddrs) == 0 {
-		return errors.New("users service unavailable")
-	}
-	productsAddrs, err := c.registry.ServiceAddress(c.ctx, "products")
-	if err != nil || len(productsAddrs) == 0 {
-		return errors.New("products service unavailable")
-	}
-	metadataAddrs, err := c.registry.ServiceAddress(c.ctx, "metadata")
-	if err != nil || len(metadataAddrs) == 0 {
-		return errors.New("metadata service unavailable")
-	}
-
-	userURL := "http://" + usersAddrs[0]
-	productURL := "http://" + productsAddrs[0]
-	metadataURL := "http://" + metadataAddrs[0]
-
-	// Validar usuario
-	usr, err := fetchUser(userURL, o.UserID)
-	if err != nil || usr.ID == "" {
-		return errors.New("user not found")
-	}
-
-	// Calcular total y reservar stock de cada producto
 	total := 0.0
-	for i, p := range o.Products {
-		prod, err := fetchProduct(productURL, p.ProductID)
-		if err != nil || prod.ID == "" {
-			return fmt.Errorf("product %s not found", p.ProductID)
-		}
-
-		if err := reserveStock(productURL, prod.ID, p.Quantity); err != nil {
-			return err
-		}
-
-		o.Products[i].Price = prod.Price
-		total += prod.Price * float64(p.Quantity)
+	for _, p := range products {
+		total += p.Price * float64(p.Quantity)
 	}
-
 	o.Total = total
-	o.CreatedAt = time.Now().Unix()
 
-	// Guardar orden
-	if err := c.repo.Create(o); err != nil {
-		return err
-	}
-
-	// Registrar metadata
-	md := &metadataModel.Metadata{
-		ID:         fmt.Sprintf("md-%s", o.ID),
-		EntityID:   o.ID,
-		EntityType: "order",
-		Attributes: map[string]string{
-			"user_id":  o.UserID,
-			"total":    fmt.Sprintf("%.2f", o.Total),
-			"products": fmt.Sprintf("%v", o.Products),
-		},
-	}
-	data, _ := json.Marshal(md)
-	_, _ = http.Post(metadataURL+"/metadata", "application/json", bytes.NewReader(data))
-
-	return nil
+	err := c.repo.Create(o)
+	return o, err
 }
 
-// fetchUser llama al endpoint /users/{id}
-func fetchUser(base, id string) (pkg.UserRef, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/users/%s", base, id))
+// --------------------
+// gRPC Server Adapter
+// --------------------
+
+type GRPCServer struct {
+	ctrl *Controller
+	pb.UnimplementedOrdersServiceServer
+}
+
+func NewGRPCServer(ctrl *Controller) *GRPCServer {
+	return &GRPCServer{ctrl: ctrl}
+}
+
+// ListOrders implementa el RPC ListOrders
+func (s *GRPCServer) ListOrders(ctx context.Context, req *pb.ListRequest) (*pb.ListResponse, error) {
+	ordersList, err := s.ctrl.List()
 	if err != nil {
-		return pkg.UserRef{}, err
+		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return pkg.UserRef{}, errors.New("user not ok")
+
+	resp := &pb.ListResponse{}
+	for _, o := range ordersList {
+		orderProto := &pb.Order{
+			Id:        o.ID,
+			UserId:    o.UserID,
+			Total:     o.Total,
+			CreatedAt: o.CreatedAt,
+		}
+		for _, p := range o.Products {
+			orderProto.Products = append(orderProto.Products, &pb.OrderProduct{
+				ProductId: p.ProductID,
+				Quantity:  int32(p.Quantity),
+				Price:     p.Price,
+			})
+		}
+		resp.Orders = append(resp.Orders, orderProto)
 	}
-	var u pkg.UserRef
-	return u, json.NewDecoder(resp.Body).Decode(&u)
+	return resp, nil
 }
 
-// fetchProduct llama al endpoint /products/{id}
-func fetchProduct(base, id string) (pkg.ProductRef, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/products/%s", base, id))
+// GetOrder implementa el RPC GetOrder
+func (s *GRPCServer) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.GetOrderResponse, error) {
+	o, err := s.ctrl.Get(req.Id)
 	if err != nil {
-		return pkg.ProductRef{}, err
+		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return pkg.ProductRef{}, errors.New("product not ok")
+
+	orderProto := &pb.Order{
+		Id:        o.ID,
+		UserId:    o.UserID,
+		Total:     o.Total,
+		CreatedAt: o.CreatedAt,
 	}
-	var p pkg.ProductRef
-	return p, json.NewDecoder(resp.Body).Decode(&p)
+	for _, p := range o.Products {
+		orderProto.Products = append(orderProto.Products, &pb.OrderProduct{
+			ProductId: p.ProductID,
+			Quantity:  int32(p.Quantity),
+			Price:     p.Price,
+		})
+	}
+
+	return &pb.GetOrderResponse{Order: orderProto}, nil
 }
 
-// reserveStock llama a POST /products/reserve
-func reserveStock(base, id string, qty int) error {
-	reqBody := struct {
-		ID       string `json:"id"`
-		Quantity int    `json:"quantity"`
-	}{ID: id, Quantity: qty}
+// CreateOrder implementa el RPC CreateOrder
+func (s *GRPCServer) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*pb.CreateOrderResponse, error) {
+	o := model.Order{
+		UserID: req.UserId,
+	}
 
-	b, _ := json.Marshal(reqBody)
-	resp, err := http.Post(fmt.Sprintf("%s/products/reserve", base), "application/json", bytesReader(b))
+	for _, p := range req.Products {
+		o.Products = append(o.Products, model.OrderProduct{
+			ProductID: p.ProductId,
+			Quantity:  int(p.Quantity),
+			Price:     p.Price,
+		})
+	}
+
+	createdOrder, err := s.ctrl.Create(o.UserID, o.Products)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent {
-		return errors.New("cannot reserve stock")
+
+	orderProto := &pb.Order{
+		Id:        createdOrder.ID,
+		UserId:    createdOrder.UserID,
+		Total:     createdOrder.Total,
+		CreatedAt: createdOrder.CreatedAt,
 	}
-	return nil
+	for _, p := range createdOrder.Products {
+		orderProto.Products = append(orderProto.Products, &pb.OrderProduct{
+			ProductId: p.ProductID,
+			Quantity:  int32(p.Quantity),
+			Price:     p.Price,
+		})
+	}
+
+	return &pb.CreateOrderResponse{Order: orderProto}, nil
 }
-
-// bytesReader crea un *bytes.Reader compatible
-func bytesReader(b []byte) *bytesReaderWrapper { return &bytesReaderWrapper{b: b} }
-
-type bytesReaderWrapper struct{ b []byte }
-
-func (r *bytesReaderWrapper) Read(p []byte) (int, error) {
-	if len(r.b) == 0 {
-		return 0, io.EOF
-	}
-	n := copy(p, r.b)
-	r.b = r.b[n:]
-	return n, nil
-}
-func (r *bytesReaderWrapper) Close() error { return nil }

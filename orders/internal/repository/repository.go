@@ -1,4 +1,4 @@
-package order
+package repository
 
 import "mini-marketplace/orders/internal/pkg/model"
 

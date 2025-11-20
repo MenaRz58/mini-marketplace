@@ -1,68 +1,38 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"net/http"
-	"os"
-	"time"
+	"net"
 
 	"mini-marketplace/orders/internal/controller/order"
-	oh "mini-marketplace/orders/internal/handler/http"
 	"mini-marketplace/orders/internal/repository/memory"
-	"mini-marketplace/pkg/discovery/consul"
+	pb "mini-marketplace/proto/orders"
+
+	"google.golang.org/grpc"
 )
 
 func main() {
-	serviceName := "orders"
-	port := getEnv("PORT", "8083")
-	addr := "localhost:" + port
+	port := 50052
+	addr := fmt.Sprintf(":%d", port)
 
-	// Repositorio
+	// Repositorio en memoria
 	repo := memory.NewInMemoryRepository()
 
-	// Conectamos a Consul
-	registry, err := consul.NewRegistry("consul:8500")
-	if err != nil {
-		log.Fatal("Failed to connect to Consul:", err)
-	}
-
-	ctx := context.Background()
-	instanceID := fmt.Sprintf("%s-%s", serviceName, port)
-
-	// Registramos el servicio
-	if err := registry.Register(ctx, instanceID, serviceName, addr); err != nil {
-		log.Fatal("Failed to register service in Consul:", err)
-	}
-	defer registry.Deregister(ctx, instanceID, serviceName)
-	log.Println("Service registered in Consul:", serviceName, "ID:", instanceID, "Address:", addr)
-
-	// Goroutine para reportar estado saludable
-	go func() {
-		for {
-			if err := registry.ReportHealthyState(instanceID, serviceName); err != nil {
-				log.Println("Failed to report healthy state:", err)
-			}
-			time.Sleep(5 * time.Second)
-		}
-	}()
-
 	// Controlador
-	ctrl := order.NewController(repo, registry, ctx)
-	h := oh.NewHandler(ctrl)
+	ctrl := order.NewController(repo)
 
-	// Router y rutas
-	mux := http.NewServeMux()
-	h.RegisterRoutes(mux)
+	// gRPC Server
+	grpcServer := grpc.NewServer()
+	pb.RegisterOrdersServiceServer(grpcServer, order.NewGRPCServer(ctrl))
 
-	fmt.Println("Orders service listening on http://" + addr)
-	log.Fatal(http.ListenAndServe(":"+port, mux))
-}
-
-func getEnv(k, def string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
+	log.Printf("Orders gRPC server listening on %s", addr)
+	lis, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
 	}
-	return def
+
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
 }

@@ -1,61 +1,47 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"log"
-	"net/http"
-	"os"
-	"time"
+	"net"
 
-	"mini-marketplace/pkg/discovery/consul"
+	"google.golang.org/grpc"
+
+	pb "mini-marketplace/proto/users"
+	adminpb "mini-marketplace/proto/users/admin"
+
 	"mini-marketplace/users/internal/controller/user"
-	uh "mini-marketplace/users/internal/handler/http"
 	"mini-marketplace/users/internal/repository/memory"
+	"mini-marketplace/users/internal/service"
 )
 
 func main() {
-	serviceName := "users"
-	port := getEnv("PORT", "8082")
-	addr := "localhost:" + port
-
+	// 1. Crear repo en memoria
 	repo := memory.NewUserRepository()
-	registry, err := consul.NewRegistry("consul:8500")
+
+	// 2. Crear controlador (Ya no necesita clientes externos)
+	ctrl, err := user.NewController(repo)
 	if err != nil {
-		log.Fatal("Failed to connect to Consul:", err)
+		log.Fatalf("failed to create controller: %v", err)
 	}
-	ctx := context.Background()
-	instanceID := fmt.Sprintf("%s-%s", serviceName, port)
 
-	// Registrar en Consul
-	if err := registry.Register(ctx, instanceID, serviceName, addr); err != nil {
-		log.Fatal("Failed to register service in Consul:", err)
+	// 3. Crear servicios gRPC
+	usersSvc := service.New(ctrl)
+	adminSvc := service.NewAdmin(ctrl)
+
+	// 4. Levantar servidor
+	lis, err := net.Listen("tcp", ":50054")
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
 	}
-	defer registry.Deregister(ctx, instanceID, serviceName)
-	log.Println("Service registered in Consul:", serviceName, "ID:", instanceID, "Address:", addr)
 
-	go func() {
-		for {
-			if err := registry.ReportHealthyState(instanceID, serviceName); err != nil {
-				log.Println("Failed to report healthy state:", err)
-			}
-			time.Sleep(5 * time.Second)
-		}
-	}()
+	grpcServer := grpc.NewServer()
 
-	ctrl := user.NewController(repo)
-	h := uh.NewHandler(ctrl)
+	// Registrar ambos servicios
+	pb.RegisterUsersServiceServer(grpcServer, usersSvc)
+	adminpb.RegisterUsersAdminServiceServer(grpcServer, adminSvc)
 
-	mux := http.NewServeMux()
-	h.RegisterRoutes(mux)
-
-	fmt.Println("Users service listening on http://" + addr)
-	log.Fatal(http.ListenAndServe(":"+port, mux))
-}
-
-func getEnv(k, def string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
+	log.Println("Users gRPC server listening on :50054")
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
-	return def
 }

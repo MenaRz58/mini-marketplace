@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package metadata;
+option go_package = "mini-marketplace/proto/metadata;metadata";
+
+message MetadataItem {
+  string id = 1;
+  string entity_id = 2;
+  string entity_type = 3;
+  map<string, string> attributes = 4;
+}
+
+message GetRequest {
+  string id = 1;
+}
+
+message GetResponse {
+  MetadataItem item = 1;
+}
+
+message PutRequest {
+  MetadataItem item = 1;
+}
+
+message PutResponse {
+  bool success = 1;
+}
+
+service MetadataService {
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Put(PutRequest) returns (PutResponse);
+}

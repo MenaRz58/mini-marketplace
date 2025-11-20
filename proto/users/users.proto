@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package users;
+option go_package = "mini-marketplace/proto/users";
+
+service UsersService {
+    // Crear un usuario
+    rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+
+    // Consultar perfil propio
+    rpc GetMyProfile(GetMyProfileRequest) returns (GetMyProfileResponse);
+    
+    // ✅ NUEVO: Usado por Gateway u Orders para saber si el usuario es real
+    rpc ValidateUser (ValidateUserRequest) returns (ValidateUserResponse);
+}
+
+message CreateUserRequest {
+    string id = 1;
+    string name = 2;
+}
+
+message CreateUserResponse {
+    User user = 1;
+}
+
+message GetMyProfileRequest {
+    string id = 1;
+}
+
+message GetMyProfileResponse {
+    User user = 1;
+}
+
+message ValidateUserRequest { 
+    string user_id = 1; 
+}
+
+message ValidateUserResponse { 
+    bool valid = 1; 
+    string name = 2; 
+}
+
+message User {
+    string id = 1;
+    string name = 2;
+}

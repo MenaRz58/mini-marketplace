@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+// CAMBIO 1: Diferenciar el paquete de protobuf
+package users.admin; 
+
+option go_package = "mini-marketplace/proto/users/admin";
+
+// Importas el archivo base
+import "proto/users/users.proto";
+
+service UsersAdminService {
+    rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+    rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message GetUserResponse {
+  // CAMBIO 2: Referenciar "User" usando el paquete "users" del import
+  users.User user = 1; 
+}
+
+message ListUsersRequest {}
+
+message ListUsersResponse {
+  // CAMBIO 2: Igual aquí
+  repeated users.User users = 1; 
+}

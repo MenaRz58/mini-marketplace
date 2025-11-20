@@ -1,51 +1,47 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"fmt"
 	"log"
-	"net/http"
-	"time"
+	"net"
+
+	pb "mini-marketplace/proto/metadata"
 
 	"mini-marketplace/metadata/internal/controller"
-	"mini-marketplace/metadata/internal/handler"
 	"mini-marketplace/metadata/internal/repository"
-	"mini-marketplace/pkg/discovery/consul"
+	"mini-marketplace/metadata/internal/service"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
-	var port int
-	flag.IntVar(&port, "port", 8090, "metadata API port")
-	flag.Parse()
+	port := 50051
 
-	registry, err := consul.NewRegistry("consul:8500")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	ctx := context.Background()
-	instanceID := fmt.Sprintf("metadata-%d", port)
-	if err := registry.Register(ctx, instanceID, "metadata", fmt.Sprintf("localhost:%d", port)); err != nil {
-		log.Fatal(err)
-	}
-	defer registry.Deregister(ctx, instanceID, "metadata")
-
-	// health
-	go func() {
-		for {
-			registry.ReportHealthyState(instanceID, "metadata")
-			time.Sleep(5 * time.Second)
-		}
-	}()
-
+	// Dependencias
 	repo := repository.New()
-	ctrl := controller.New(repo) // <- ahora usamos el nombre real del paquete
-	h := handler.New(ctrl)
+	ctrl := controller.New(repo)
+	server := service.New(ctrl)
 
-	mux := http.NewServeMux()
-	h.RegisterRoutes(mux)
+	// Servidor gRPC
+	grpcServer := grpc.NewServer()
 
-	fmt.Println("Metadata service listening on", port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), mux))
+	// Registrar servicio
+	pb.RegisterMetadataServiceServer(grpcServer, server)
+
+	// Reflection (para grpcurl)
+	reflection.Register(grpcServer)
+
+	// Escuchar puerto
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	log.Printf("Metadata gRPC server running on port %d...", port)
+
+	// Iniciar
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
 }
