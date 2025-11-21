@@ -6,19 +6,22 @@ import (
 	"time"
 
 	"mini-marketplace/orders/internal/pkg/model"
-	"mini-marketplace/orders/internal/repository"
 	pb "mini-marketplace/proto/orders"
 
 	"github.com/google/uuid"
 )
 
-// Controller maneja la lógica de órdenes
-type Controller struct {
-	repo repository.Repo
+type Repository interface {
+	Save(o *model.Order) error
+	Get(id string) (*model.Order, error)
+	List() ([]model.Order, error)
 }
 
-// Nuevo controller
-func NewController(r repository.Repo) *Controller {
+type Controller struct {
+	repo Repository
+}
+
+func NewController(r Repository) *Controller {
 	return &Controller{repo: r}
 }
 
@@ -28,14 +31,14 @@ func (c *Controller) List() ([]model.Order, error) {
 }
 
 // Get devuelve una orden por ID
-func (c *Controller) Get(id string) (model.Order, error) {
+func (c *Controller) Get(id string) (*model.Order, error) {
 	return c.repo.Get(id)
 }
 
 // Create crea una nueva orden
-func (c *Controller) Create(userID string, products []model.OrderProduct) (model.Order, error) {
+func (c *Controller) Create(userID string, products []model.OrderProduct) (*model.Order, error) {
 	if userID == "" || len(products) == 0 {
-		return model.Order{}, errors.New("invalid order fields")
+		return nil, errors.New("invalid order fields")
 	}
 
 	o := model.Order{
@@ -51,8 +54,11 @@ func (c *Controller) Create(userID string, products []model.OrderProduct) (model
 	}
 	o.Total = total
 
-	err := c.repo.Create(o)
-	return o, err
+	if err := c.repo.Save(&o); err != nil {
+		return nil, err
+	}
+
+	return &o, nil
 }
 
 // --------------------
@@ -128,7 +134,7 @@ func (s *GRPCServer) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest
 	for _, p := range req.Products {
 		o.Products = append(o.Products, model.OrderProduct{
 			ProductID: p.ProductId,
-			Quantity:  int(p.Quantity),
+			Quantity:  int32(p.Quantity),
 			Price:     p.Price,
 		})
 	}

@@ -3,22 +3,26 @@ package user
 import (
 	"errors"
 	"mini-marketplace/users/internal/pkg/model"
-	"mini-marketplace/users/internal/repository/memory"
 )
 
-type Controller struct {
-	repo memory.Repo
-	// Eliminamos productsClient y ordersClient. ¡Users es independiente!
+type Repository interface {
+	List() ([]model.User, error)
+	Get(id string) (model.User, error)
+	Create(u model.User) error
 }
 
-func NewController(r memory.Repo) (*Controller, error) {
+type Controller struct {
+	repo Repository
+}
+
+func NewController(r Repository) (*Controller, error) {
 	if r == nil {
 		return nil, errors.New("repository is nil")
 	}
 	return &Controller{repo: r}, nil
 }
 
-func (c *Controller) List() []model.User {
+func (c *Controller) List() ([]model.User, error) {
 	return c.repo.List()
 }
 
@@ -37,7 +41,6 @@ func (c *Controller) Create(id, name string) (model.User, error) {
 	return u, nil
 }
 
-// ✅ Lógica para ValidateUser
 func (c *Controller) Validate(id string) (bool, string) {
 	u, err := c.repo.Get(id)
 	if err != nil {

@@ -1,15 +1,17 @@
 package model
 
-type OrderProduct struct {
-	ProductID string  `json:"product_id"`
-	Quantity  int     `json:"quantity"`
-	Price     float64 `json:"price,omitempty"`
+type Order struct {
+	ID        string `gorm:"primaryKey"`
+	UserID    string
+	Total     float64
+	CreatedAt int64
+	Products  []OrderProduct `gorm:"foreignKey:OrderID"`
 }
 
-type Order struct {
-	ID        string         `json:"id"`
-	UserID    string         `json:"user_id"`
-	Products  []OrderProduct `json:"products"`
-	Total     float64        `json:"total"`
-	CreatedAt int64          `json:"created_at"`
+type OrderProduct struct {
+	ID        uint `gorm:"primaryKey"`
+	OrderID   string
+	ProductID string
+	Quantity  int32
+	Price     float64
 }

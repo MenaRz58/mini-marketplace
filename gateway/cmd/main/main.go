@@ -87,12 +87,7 @@ func main() {
 // ---------------------------------------------------------
 
 func (s *gatewayServer) PlaceOrder(ctx context.Context, req *pbGateway.PlaceOrderRequest) (*pbGateway.PlaceOrderResponse, error) {
-	log.Println("🟢 DEBUG: ¡SOLICITUD RECIBIDA EN GATEWAY!")
-	log.Printf("Datos recibidos: UserID=%s", req.UserId)
-	log.Printf("Recibida petición de compra para usuario: %s", req.UserId)
-
-	// PASO A: Validar Usuario (Llamada a Users Service)
-	// (Opcional, pero buena práctica)
+	// Validar Usuario (Llamada a Users Service)
 	valResp, err := s.usersClient.ValidateUser(ctx, &pbUsers.ValidateUserRequest{UserId: req.UserId})
 
 	if err != nil {
@@ -116,6 +111,16 @@ func (s *gatewayServer) PlaceOrder(ctx context.Context, req *pbGateway.PlaceOrde
 		if err != nil {
 			log.Printf("Error obteniendo producto %s: %v", item.ProductId, err)
 			return &pbGateway.PlaceOrderResponse{Success: false}, fmt.Errorf("producto no encontrado: %s", item.ProductId)
+		}
+
+		_, err = s.productsClient.ReserveProduct(ctx, &pbProducts.ReserveProductRequest{
+			Id:       item.ProductId,
+			Quantity: item.Quantity,
+		})
+
+		if err != nil {
+			log.Printf("Error reservando stock: %v", err)
+			return &pbGateway.PlaceOrderResponse{Success: false}, fmt.Errorf("stock insuficiente o error")
 		}
 
 		// B. Usar el precio que nos dio el servicio de productos

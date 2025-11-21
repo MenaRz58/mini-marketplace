@@ -21,17 +21,17 @@ func (s *Server) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*
 	for i, p := range req.Products {
 		products[i] = model.OrderProduct{
 			ProductID: p.ProductId,
-			Quantity:  int(p.Quantity),
+			Quantity:  p.Quantity,
 			Price:     p.Price,
 		}
 	}
 
-	order, err := s.ctrl.Create(req.UserId, products)
+	createdOrder, err := s.ctrl.Create(req.UserId, products)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.CreateOrderResponse{Order: convert(order)}, nil
+	return &pb.CreateOrderResponse{Order: convert(createdOrder)}, nil
 }
 
 func (s *Server) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.GetOrderResponse, error) {
@@ -49,14 +49,14 @@ func (s *Server) ListOrders(ctx context.Context, req *pb.ListRequest) (*pb.ListR
 	}
 
 	resp := &pb.ListResponse{Orders: make([]*pb.Order, len(list))}
-	for i, o := range list {
-		resp.Orders[i] = convert(o)
+	for i := range list {
+		resp.Orders[i] = convert(&list[i])
 	}
 	return resp, nil
 }
 
 // convert convierte model.Order a pb.Order
-func convert(o model.Order) *pb.Order {
+func convert(o *model.Order) *pb.Order {
 	prods := make([]*pb.OrderProduct, len(o.Products))
 	for i, p := range o.Products {
 		prods[i] = &pb.OrderProduct{

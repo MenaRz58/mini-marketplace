@@ -18,7 +18,10 @@ func NewAdmin(ctrl *user.Controller) *UsersAdminGRPCServer {
 }
 
 func (s *UsersAdminGRPCServer) ListUsers(ctx context.Context, req *pba.ListUsersRequest) (*pba.ListUsersResponse, error) {
-	usersList := s.ctrl.List()
+	usersList, err := s.ctrl.List()
+	if err != nil {
+		return nil, err
+	}
 
 	resp := &pba.ListUsersResponse{
 		Users: make([]*pb.User, len(usersList)),

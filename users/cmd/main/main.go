@@ -1,8 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
+	"os"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
 	"google.golang.org/grpc"
 
@@ -10,18 +15,34 @@ import (
 	adminpb "mini-marketplace/proto/users/admin"
 
 	"mini-marketplace/users/internal/controller/user"
-	"mini-marketplace/users/internal/repository/memory"
+	"mini-marketplace/users/internal/pkg/model"
+	userRepo "mini-marketplace/users/internal/repository/postgres"
 	"mini-marketplace/users/internal/service"
 )
 
 func main() {
 	// 1. Crear repo en memoria
-	repo := memory.NewUserRepository()
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_PORT"),
+	)
 
-	// 2. Crear controlador (Ya no necesita clientes externos)
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatal("Fallo al conectar a la DB:", err)
+	}
+
+	db.AutoMigrate(&model.User{})
+
+	repo := userRepo.NewUserRepository(db)
+
+	// 2. Crear controlador
 	ctrl, err := user.NewController(repo)
 	if err != nil {
-		log.Fatalf("failed to create controller: %v", err)
+		log.Fatalf("Error creando el controlador: %v", err)
 	}
 
 	// 3. Crear servicios gRPC

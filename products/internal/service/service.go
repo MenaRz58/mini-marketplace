@@ -17,14 +17,23 @@ func New(ctrl *product.Controller) *Server {
 }
 
 func (s *Server) ListProducts(ctx context.Context, req *pb.ListProductsRequest) (*pb.ListProductsResponse, error) {
-	list := s.ctrl.List()
-	resp := &pb.ListProductsResponse{
-		Products: make([]*pb.Product, len(list)),
+	productsList, err := s.ctrl.List()
+	if err != nil {
+		return nil, err
 	}
-	for i, p := range list {
-		resp.Products[i] = convert(p)
+	var responseProducts []*pb.Product
+	for _, p := range productsList {
+		responseProducts = append(responseProducts, &pb.Product{
+			Id:    p.ID,
+			Name:  p.Name,
+			Price: p.Price,
+			Stock: int32(p.Stock),
+		})
 	}
-	return resp, nil
+
+	return &pb.ListProductsResponse{
+		Products: responseProducts,
+	}, nil
 }
 
 func (s *Server) GetProduct(ctx context.Context, req *pb.GetProductRequest) (*pb.GetProductResponse, error) {

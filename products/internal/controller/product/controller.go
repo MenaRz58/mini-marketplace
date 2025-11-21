@@ -3,18 +3,24 @@ package product
 import (
 	"errors"
 	"mini-marketplace/products/internal/pkg/model"
-	"mini-marketplace/products/internal/repository/memory"
 )
 
-type Controller struct {
-	repo memory.Repo
+type Repository interface {
+	Get(id string) (model.Product, error)
+	Create(p model.Product) error
+	DecreaseStock(id string, qty int) error
+	List() ([]model.Product, error)
 }
 
-func NewController(r memory.Repo) *Controller {
+type Controller struct {
+	repo Repository
+}
+
+func NewController(r Repository) *Controller {
 	return &Controller{repo: r}
 }
 
-func (c *Controller) List() []model.Product {
+func (c *Controller) List() ([]model.Product, error) {
 	return c.repo.List()
 }
 
