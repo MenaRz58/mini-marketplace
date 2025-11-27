@@ -4,19 +4,20 @@ package users;
 option go_package = "mini-marketplace/proto/users";
 
 service UsersService {
-    // Crear un usuario
     rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
 
-    // Consultar perfil propio
     rpc GetMyProfile(GetMyProfileRequest) returns (GetMyProfileResponse);
     
-    // ✅ NUEVO: Usado por Gateway u Orders para saber si el usuario es real
     rpc ValidateUser (ValidateUserRequest) returns (ValidateUserResponse);
+
+    rpc Login (LoginRequest) returns (LoginResponse);
 }
 
 message CreateUserRequest {
     string id = 1;
     string name = 2;
+    string email = 3;
+    string password = 4;
 }
 
 message CreateUserResponse {
@@ -38,9 +39,23 @@ message ValidateUserRequest {
 message ValidateUserResponse { 
     bool valid = 1; 
     string name = 2; 
+    bool is_admin = 3;
+}
+
+message LoginRequest {
+    string user_id = 1;
+    string password = 2; 
+}
+
+message LoginResponse {
+    bool success = 1;
+    string message = 2;
+    User user = 3;
 }
 
 message User {
     string id = 1;
     string name = 2;
+    string email = 3;
+    bool is_admin = 4;
 }

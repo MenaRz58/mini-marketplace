@@ -24,7 +24,7 @@ const (
 // Mensaje de producto dentro de una orden
 type OrderProduct struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProductId     string                 `protobuf:"bytes,1,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
+	ProductId     int32                  `protobuf:"varint,1,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
 	Quantity      int32                  `protobuf:"varint,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	Price         float64                `protobuf:"fixed64,3,opt,name=price,proto3" json:"price,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -61,11 +61,11 @@ func (*OrderProduct) Descriptor() ([]byte, []int) {
 	return file_proto_orders_orders_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *OrderProduct) GetProductId() string {
+func (x *OrderProduct) GetProductId() int32 {
 	if x != nil {
 		return x.ProductId
 	}
-	return ""
+	return 0
 }
 
 func (x *OrderProduct) GetQuantity() int32 {
@@ -433,7 +433,7 @@ const file_proto_orders_orders_proto_rawDesc = "" +
 	"\x19proto/orders/orders.proto\x12\x06orders\"_\n" +
 	"\fOrderProduct\x12\x1d\n" +
 	"\n" +
-	"product_id\x18\x01 \x01(\tR\tproductId\x12\x1a\n" +
+	"product_id\x18\x01 \x01(\x05R\tproductId\x12\x1a\n" +
 	"\bquantity\x18\x02 \x01(\x05R\bquantity\x12\x14\n" +
 	"\x05price\x18\x03 \x01(\x01R\x05price\"\x97\x01\n" +
 	"\x05Order\x12\x0e\n" +

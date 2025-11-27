@@ -55,12 +55,11 @@ func (s *Server) ListOrders(ctx context.Context, req *pb.ListRequest) (*pb.ListR
 	return resp, nil
 }
 
-// convert convierte model.Order a pb.Order
 func convert(o *model.Order) *pb.Order {
 	prods := make([]*pb.OrderProduct, len(o.Products))
 	for i, p := range o.Products {
 		prods[i] = &pb.OrderProduct{
-			ProductId: p.ProductID,
+			ProductId: int32(p.ProductID),
 			Quantity:  int32(p.Quantity),
 			Price:     p.Price,
 		}
@@ -70,6 +69,6 @@ func convert(o *model.Order) *pb.Order {
 		UserId:    o.UserID,
 		Products:  prods,
 		Total:     o.Total,
-		CreatedAt: o.CreatedAt,
+		CreatedAt: o.CreatedAt.Unix(),
 	}
 }

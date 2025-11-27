@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"mini-marketplace/users/internal/pkg/model"
 )
@@ -9,6 +10,7 @@ type Repository interface {
 	List() ([]model.User, error)
 	Get(id string) (model.User, error)
 	Create(u model.User) error
+	GetWithCredentials(id string) (*model.User, error)
 }
 
 type Controller struct {
@@ -47,4 +49,18 @@ func (c *Controller) Validate(id string) (bool, string) {
 		return false, ""
 	}
 	return true, u.Name
+}
+
+func (c *Controller) Login(ctx context.Context, id string, password string) (*model.User, error) {
+
+	user, err := c.repo.GetWithCredentials(id)
+	if err != nil {
+		return nil, errors.New("usuario no encontrado")
+	}
+
+	if user.Password != password {
+		return nil, errors.New("contraseña incorrecta")
+	}
+
+	return user, nil
 }

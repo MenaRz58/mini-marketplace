@@ -3,7 +3,6 @@ package order
 import (
 	"context"
 	"errors"
-	"time"
 
 	"mini-marketplace/orders/internal/pkg/model"
 	pb "mini-marketplace/proto/orders"
@@ -25,27 +24,26 @@ func NewController(r Repository) *Controller {
 	return &Controller{repo: r}
 }
 
-// List devuelve todas las órdenes
+// List - todas las órdenes
 func (c *Controller) List() ([]model.Order, error) {
 	return c.repo.List()
 }
 
-// Get devuelve una orden por ID
+// Get orden por ID
 func (c *Controller) Get(id string) (*model.Order, error) {
 	return c.repo.Get(id)
 }
 
-// Create crea una nueva orden
+// Create - nueva orden
 func (c *Controller) Create(userID string, products []model.OrderProduct) (*model.Order, error) {
 	if userID == "" || len(products) == 0 {
 		return nil, errors.New("invalid order fields")
 	}
 
 	o := model.Order{
-		ID:        uuid.New().String(),
-		UserID:    userID,
-		Products:  products,
-		CreatedAt: time.Now().Unix(),
+		ID:       uuid.New().String(),
+		UserID:   userID,
+		Products: products,
 	}
 
 	total := 0.0
@@ -74,7 +72,6 @@ func NewGRPCServer(ctrl *Controller) *GRPCServer {
 	return &GRPCServer{ctrl: ctrl}
 }
 
-// ListOrders implementa el RPC ListOrders
 func (s *GRPCServer) ListOrders(ctx context.Context, req *pb.ListRequest) (*pb.ListResponse, error) {
 	ordersList, err := s.ctrl.List()
 	if err != nil {
@@ -84,14 +81,13 @@ func (s *GRPCServer) ListOrders(ctx context.Context, req *pb.ListRequest) (*pb.L
 	resp := &pb.ListResponse{}
 	for _, o := range ordersList {
 		orderProto := &pb.Order{
-			Id:        o.ID,
-			UserId:    o.UserID,
-			Total:     o.Total,
-			CreatedAt: o.CreatedAt,
+			Id:     o.ID,
+			UserId: o.UserID,
+			Total:  o.Total,
 		}
 		for _, p := range o.Products {
 			orderProto.Products = append(orderProto.Products, &pb.OrderProduct{
-				ProductId: p.ProductID,
+				ProductId: int32(p.ProductID),
 				Quantity:  int32(p.Quantity),
 				Price:     p.Price,
 			})
@@ -101,7 +97,6 @@ func (s *GRPCServer) ListOrders(ctx context.Context, req *pb.ListRequest) (*pb.L
 	return resp, nil
 }
 
-// GetOrder implementa el RPC GetOrder
 func (s *GRPCServer) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.GetOrderResponse, error) {
 	o, err := s.ctrl.Get(req.Id)
 	if err != nil {
@@ -109,14 +104,13 @@ func (s *GRPCServer) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb
 	}
 
 	orderProto := &pb.Order{
-		Id:        o.ID,
-		UserId:    o.UserID,
-		Total:     o.Total,
-		CreatedAt: o.CreatedAt,
+		Id:     o.ID,
+		UserId: o.UserID,
+		Total:  o.Total,
 	}
 	for _, p := range o.Products {
 		orderProto.Products = append(orderProto.Products, &pb.OrderProduct{
-			ProductId: p.ProductID,
+			ProductId: int32(p.ProductID),
 			Quantity:  int32(p.Quantity),
 			Price:     p.Price,
 		})
@@ -125,7 +119,6 @@ func (s *GRPCServer) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb
 	return &pb.GetOrderResponse{Order: orderProto}, nil
 }
 
-// CreateOrder implementa el RPC CreateOrder
 func (s *GRPCServer) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*pb.CreateOrderResponse, error) {
 	o := model.Order{
 		UserID: req.UserId,
@@ -133,7 +126,7 @@ func (s *GRPCServer) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest
 
 	for _, p := range req.Products {
 		o.Products = append(o.Products, model.OrderProduct{
-			ProductID: p.ProductId,
+			ProductID: int32(p.ProductId),
 			Quantity:  int32(p.Quantity),
 			Price:     p.Price,
 		})
@@ -145,14 +138,13 @@ func (s *GRPCServer) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest
 	}
 
 	orderProto := &pb.Order{
-		Id:        createdOrder.ID,
-		UserId:    createdOrder.UserID,
-		Total:     createdOrder.Total,
-		CreatedAt: createdOrder.CreatedAt,
+		Id:     createdOrder.ID,
+		UserId: createdOrder.UserID,
+		Total:  createdOrder.Total,
 	}
 	for _, p := range createdOrder.Products {
 		orderProto.Products = append(orderProto.Products, &pb.OrderProduct{
-			ProductId: p.ProductID,
+			ProductId: int32(p.ProductID),
 			Quantity:  int32(p.Quantity),
 			Price:     p.Price,
 		})

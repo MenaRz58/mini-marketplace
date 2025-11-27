@@ -18,31 +18,36 @@ func NewProductRepository(db *gorm.DB) *ProductRepository {
 	return &ProductRepository{db: db}
 }
 
-// Implementación de Get
-func (r *ProductRepository) Get(id string) (model.Product, error) {
+func (r *ProductRepository) Get(id uint) (model.Product, error) {
 	var p model.Product
 	// Busca por ID
 	result := r.db.First(&p, "id = ?", id)
 	return p, result.Error
 }
 
-// (Opcional) Implementación de List si la tienes
 func (r *ProductRepository) List() ([]model.Product, error) {
 	var products []model.Product
 	result := r.db.Find(&products)
 	return products, result.Error
 }
 
-func (r *ProductRepository) Create(p model.Product) error {
-	result := r.db.Create(&p)
-
+func (r *ProductRepository) Create(p *model.Product) error {
+	result := r.db.Create(p)
 	if result.Error != nil {
 		return result.Error
 	}
 	return nil
 }
 
-func (r *ProductRepository) DecreaseStock(id string, qty int) error {
+func (r *ProductRepository) Update(p *model.Product) error {
+	return r.db.Save(p).Error
+}
+
+func (r *ProductRepository) Delete(id uint) error {
+	return r.db.Delete(&model.Product{}, id).Error
+}
+
+func (r *ProductRepository) DecreaseStock(id uint, qty int) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		var p model.Product
 

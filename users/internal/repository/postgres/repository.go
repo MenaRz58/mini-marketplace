@@ -20,10 +20,8 @@ func (r *UserRepository) List() ([]model.User, error) {
 	return users, result.Error
 }
 
-// Implementas la interfaz que ya tenías definida
 func (r *UserRepository) Get(id string) (model.User, error) {
 	var u model.User
-	// Gorm busca en la tabla 'users'
 	if result := r.db.First(&u, "id = ?", id); result.Error != nil {
 		return model.User{}, result.Error
 	}
@@ -34,4 +32,14 @@ func (r *UserRepository) Create(u model.User) error {
 	return r.db.Create(&u).Error
 }
 
-// ... resto de métodos
+func (r *UserRepository) GetWithCredentials(id string) (*model.User, error) {
+	var u model.User
+
+	result := r.db.Where("id = ?", id).First(&u)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &u, nil
+}

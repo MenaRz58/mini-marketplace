@@ -10,4 +10,6 @@ RUN GOOS=linux GOARCH=amd64 go build -o /app/gateway-app ./gateway/cmd/main/main
 FROM alpine:latest
 WORKDIR /app
 COPY --from=build /app/gateway-app ./gateway-app
+COPY gateway/static ./static
+EXPOSE 9090
 CMD ["./gateway-app"]

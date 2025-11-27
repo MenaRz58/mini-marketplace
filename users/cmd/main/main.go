@@ -21,7 +21,6 @@ import (
 )
 
 func main() {
-	// 1. Crear repo en memoria
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
 		os.Getenv("DB_HOST"),
 		os.Getenv("DB_USER"),
@@ -39,17 +38,14 @@ func main() {
 
 	repo := userRepo.NewUserRepository(db)
 
-	// 2. Crear controlador
 	ctrl, err := user.NewController(repo)
 	if err != nil {
 		log.Fatalf("Error creando el controlador: %v", err)
 	}
 
-	// 3. Crear servicios gRPC
 	usersSvc := service.New(ctrl)
 	adminSvc := service.NewAdmin(ctrl)
 
-	// 4. Levantar servidor
 	lis, err := net.Listen("tcp", ":50054")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -57,7 +53,6 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 
-	// Registrar ambos servicios
 	pb.RegisterUsersServiceServer(grpcServer, usersSvc)
 	adminpb.RegisterUsersAdminServiceServer(grpcServer, adminSvc)
 

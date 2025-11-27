@@ -3,9 +3,7 @@ package gateway;
 
 option go_package = "mini-marketplace/proto/gateway";
 
-// Servicio que ve el mundo exterior
 service GatewayService {
-    // El cliente llama a esto
     rpc PlaceOrder(PlaceOrderRequest) returns (PlaceOrderResponse);
 }
 

@@ -33,7 +33,7 @@ func main() {
 	// 2. Migración
 	db.AutoMigrate(&model.Product{})
 
-	// 3. Inyectar Repo SQL
+	// 3. Repo SQL
 	repo := productRepo.NewProductRepository(db)
 	ctrl := product.NewController(repo)
 

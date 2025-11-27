@@ -24,7 +24,7 @@ func (s *Server) ListProducts(ctx context.Context, req *pb.ListProductsRequest) 
 	var responseProducts []*pb.Product
 	for _, p := range productsList {
 		responseProducts = append(responseProducts, &pb.Product{
-			Id:    p.ID,
+			Id:    int32(p.ID),
 			Name:  p.Name,
 			Price: p.Price,
 			Stock: int32(p.Stock),
@@ -37,7 +37,7 @@ func (s *Server) ListProducts(ctx context.Context, req *pb.ListProductsRequest) 
 }
 
 func (s *Server) GetProduct(ctx context.Context, req *pb.GetProductRequest) (*pb.GetProductResponse, error) {
-	p, err := s.ctrl.Get(req.Id)
+	p, err := s.ctrl.Get(uint(req.Id))
 	if err != nil {
 		return nil, err
 	}
@@ -45,29 +45,59 @@ func (s *Server) GetProduct(ctx context.Context, req *pb.GetProductRequest) (*pb
 }
 
 func (s *Server) CreateProduct(ctx context.Context, req *pb.CreateProductRequest) (*pb.CreateProductResponse, error) {
+
 	p := model.Product{
-		ID:    req.Product.Id,
 		Name:  req.Product.Name,
 		Price: req.Product.Price,
 		Stock: int(req.Product.Stock),
 	}
-	if err := s.ctrl.Create(p); err != nil {
+	if err := s.ctrl.Create(&p); err != nil {
 		return nil, err
 	}
-	return &pb.CreateProductResponse{Product: convert(p)}, nil
+	return &pb.CreateProductResponse{
+		Product: &pb.Product{
+			Id:    int32(p.ID),
+			Name:  p.Name,
+			Price: p.Price,
+			Stock: int32(p.Stock),
+		},
+	}, nil
 }
 
 func (s *Server) ReserveProduct(ctx context.Context, req *pb.ReserveProductRequest) (*pb.ReserveProductResponse, error) {
-	p, err := s.ctrl.Reserve(req.Id, int(req.Quantity))
+	p, err := s.ctrl.Reserve(uint(req.Id), int(req.Quantity))
 	if err != nil {
 		return nil, err
 	}
 	return &pb.ReserveProductResponse{Product: convert(p)}, nil
 }
 
+func (s *Server) UpdateProduct(ctx context.Context, req *pb.UpdateProductRequest) (*pb.UpdateProductResponse, error) {
+	p := model.Product{
+		ID:    uint(req.Product.Id),
+		Name:  req.Product.Name,
+		Price: req.Product.Price,
+		Stock: int(req.Product.Stock),
+	}
+
+	if err := s.ctrl.Update(&p); err != nil {
+		return nil, err
+	}
+	return &pb.UpdateProductResponse{
+		Product: convert(p),
+	}, nil
+}
+
+func (s *Server) DeleteProduct(ctx context.Context, req *pb.DeleteProductRequest) (*pb.DeleteProductResponse, error) {
+	if err := s.ctrl.Delete(uint(req.Id)); err != nil {
+		return &pb.DeleteProductResponse{Success: false}, err
+	}
+	return &pb.DeleteProductResponse{Success: true}, nil
+}
+
 func convert(p model.Product) *pb.Product {
 	return &pb.Product{
-		Id:    p.ID,
+		Id:    int32(p.ID),
 		Name:  p.Name,
 		Price: p.Price,
 		Stock: int32(p.Stock),

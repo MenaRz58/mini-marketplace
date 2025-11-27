@@ -8,6 +8,5 @@ spec:
   selector:
     app: gateway
   ports:
-    - protocol: TCP
-      port: 80     
-      targetPort: 50051 
+    - port: 80     
+      targetPort: 9090 

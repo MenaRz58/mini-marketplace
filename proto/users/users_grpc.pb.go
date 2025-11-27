@@ -22,6 +22,7 @@ const (
 	UsersService_CreateUser_FullMethodName   = "/users.UsersService/CreateUser"
 	UsersService_GetMyProfile_FullMethodName = "/users.UsersService/GetMyProfile"
 	UsersService_ValidateUser_FullMethodName = "/users.UsersService/ValidateUser"
+	UsersService_Login_FullMethodName        = "/users.UsersService/Login"
 )
 
 // UsersServiceClient is the client API for UsersService service.
@@ -32,8 +33,8 @@ type UsersServiceClient interface {
 	CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*CreateUserResponse, error)
 	// Consultar perfil propio
 	GetMyProfile(ctx context.Context, in *GetMyProfileRequest, opts ...grpc.CallOption) (*GetMyProfileResponse, error)
-	// ✅ NUEVO: Usado por Gateway u Orders para saber si el usuario es real
 	ValidateUser(ctx context.Context, in *ValidateUserRequest, opts ...grpc.CallOption) (*ValidateUserResponse, error)
+	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 }
 
 type usersServiceClient struct {
@@ -74,6 +75,16 @@ func (c *usersServiceClient) ValidateUser(ctx context.Context, in *ValidateUserR
 	return out, nil
 }
 
+func (c *usersServiceClient) Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LoginResponse)
+	err := c.cc.Invoke(ctx, UsersService_Login_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UsersServiceServer is the server API for UsersService service.
 // All implementations must embed UnimplementedUsersServiceServer
 // for forward compatibility.
@@ -82,8 +93,8 @@ type UsersServiceServer interface {
 	CreateUser(context.Context, *CreateUserRequest) (*CreateUserResponse, error)
 	// Consultar perfil propio
 	GetMyProfile(context.Context, *GetMyProfileRequest) (*GetMyProfileResponse, error)
-	// ✅ NUEVO: Usado por Gateway u Orders para saber si el usuario es real
 	ValidateUser(context.Context, *ValidateUserRequest) (*ValidateUserResponse, error)
+	Login(context.Context, *LoginRequest) (*LoginResponse, error)
 	mustEmbedUnimplementedUsersServiceServer()
 }
 
@@ -102,6 +113,9 @@ func (UnimplementedUsersServiceServer) GetMyProfile(context.Context, *GetMyProfi
 }
 func (UnimplementedUsersServiceServer) ValidateUser(context.Context, *ValidateUserRequest) (*ValidateUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ValidateUser not implemented")
+}
+func (UnimplementedUsersServiceServer) Login(context.Context, *LoginRequest) (*LoginResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Login not implemented")
 }
 func (UnimplementedUsersServiceServer) mustEmbedUnimplementedUsersServiceServer() {}
 func (UnimplementedUsersServiceServer) testEmbeddedByValue()                      {}
@@ -178,6 +192,24 @@ func _UsersService_ValidateUser_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UsersService_Login_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LoginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UsersServiceServer).Login(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UsersService_Login_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UsersServiceServer).Login(ctx, req.(*LoginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UsersService_ServiceDesc is the grpc.ServiceDesc for UsersService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -196,6 +228,10 @@ var UsersService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ValidateUser",
 			Handler:    _UsersService_ValidateUser_Handler,
+		},
+		{
+			MethodName: "Login",
+			Handler:    _UsersService_Login_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
